@@ -101,7 +101,9 @@ module.exports = grammar({
         "mastersync",
         "puppetsync",
       ),
-
+    self: ($) => "self",
+    super: ($) => "super",
+    yield: ($) => "yield",
     escape_sequence: ($) =>
       token(
         seq(
@@ -596,6 +598,9 @@ module.exports = grammar({
     _primary_expression: ($) =>
       choice(
         $.binary_operator,
+        $.self,
+        $.super,
+        $.yield,
         $.identifier,
         $.string,
         $.integer,
@@ -630,6 +635,8 @@ module.exports = grammar({
           //$.binary_operator,
           // Likewise, unary op does same.
           // $.unary_operator,
+          $.super,
+          $.self,
           $.identifier,
           $.string,
           $.integer,

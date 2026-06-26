@@ -52,11 +52,19 @@
         "named": true
       },
       {
+        "type": "self",
+        "named": true
+      },
+      {
         "type": "string",
         "named": true
       },
       {
         "type": "subscript",
+        "named": true
+      },
+      {
+        "type": "super",
         "named": true
       },
       {
@@ -226,6 +234,10 @@
         "named": true
       },
       {
+        "type": "self",
+        "named": true
+      },
+      {
         "type": "string",
         "named": true
       },
@@ -238,11 +250,19 @@
         "named": true
       },
       {
+        "type": "super",
+        "named": true
+      },
+      {
         "type": "true",
         "named": true
       },
       {
         "type": "unary_operator",
+        "named": true
+      },
+      {
+        "type": "yield",
         "named": true
       }
     ]
@@ -2831,6 +2851,10 @@
     "named": false
   },
   {
+    "type": "self",
+    "named": true
+  },
+  {
     "type": "set",
     "named": false
   },
@@ -2844,6 +2868,10 @@
   },
   {
     "type": "static_keyword",
+    "named": true
+  },
+  {
+    "type": "super",
     "named": true
   },
   {
@@ -2861,6 +2889,10 @@
   {
     "type": "while",
     "named": false
+  },
+  {
+    "type": "yield",
+    "named": true
   },
   {
     "type": "{",

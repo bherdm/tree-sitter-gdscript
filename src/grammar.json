@@ -143,6 +143,18 @@
         }
       ]
     },
+    "self": {
+      "type": "STRING",
+      "value": "self"
+    },
+    "super": {
+      "type": "STRING",
+      "value": "super"
+    },
+    "yield": {
+      "type": "STRING",
+      "value": "yield"
+    },
     "escape_sequence": {
       "type": "TOKEN",
       "content": {
@@ -2682,6 +2694,18 @@
         },
         {
           "type": "SYMBOL",
+          "name": "self"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "super"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "yield"
+        },
+        {
+          "type": "SYMBOL",
           "name": "identifier"
         },
         {
@@ -2777,6 +2801,14 @@
       "content": {
         "type": "CHOICE",
         "members": [
+          {
+            "type": "SYMBOL",
+            "name": "super"
+          },
+          {
+            "type": "SYMBOL",
+            "name": "self"
+          },
           {
             "type": "SYMBOL",
             "name": "identifier"
