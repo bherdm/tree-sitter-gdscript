@@ -561,10 +561,16 @@ unsigned tree_sitter_gdscript_external_scanner_serialize(void *payload,
     }
     size += delimiter_count;
 
+    // Indents are stored as uint16_t (absolute indentation widths, tabs count as
+    // 8). Serialize each as two little-endian bytes so deeply nested blocks whose
+    // indentation width exceeds 255 (~32 tab levels) survive round-tripping; a
+    // single-byte encoding truncated those and corrupted the indent stack.
     for (int iter = 1; (uint32_t)iter < scanner->indents->len &&
-                       size < TREE_SITTER_SERIALIZATION_BUFFER_SIZE;
+                       size + 2 <= TREE_SITTER_SERIALIZATION_BUFFER_SIZE;
          ++iter) {
-        buffer[size++] = (char)scanner->indents->data[iter];
+        uint16_t indent = scanner->indents->data[iter];
+        buffer[size++] = (char)(indent & 0xFF);
+        buffer[size++] = (char)((indent >> 8) & 0xFF);
     }
 
     return size;
@@ -590,9 +596,11 @@ void tree_sitter_gdscript_external_scanner_deserialize(void *payload,
             size += delimiter_count;
         }
 
-        // Deserialize the indents
-        for (; size < length; size++) {
-            VEC_PUSH(scanner->indents, (unsigned char)buffer[size]);
+        // Deserialize the indents (two little-endian bytes each; see serialize).
+        for (; size + 2 <= length; size += 2) {
+            uint16_t indent = (uint8_t)buffer[size] |
+                              ((uint16_t)(uint8_t)buffer[size + 1] << 8);
+            VEC_PUSH(scanner->indents, indent);
         }
 
         assert(size == length);

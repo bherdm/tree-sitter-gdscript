@@ -75,7 +75,10 @@ module.exports = grammar({
     // -                                     Atoms                                 -
     // -----------------------------------------------------------------------------
 
-    _identifier: ($) => /[a-zA-Z_][a-zA-Z_0-9]*/,
+    // GDScript allows Unicode identifiers (Godot uses is_unicode_identifier_*).
+    // XID_Continue already includes ASCII digits and `_` (connector punctuation);
+    // `_` is added to the start class since it is not an XID_Start character.
+    _identifier: ($) => /[\p{XID_Start}_][\p{XID_Continue}]*/,
     // any "symbol"
     identifier: ($) => $._identifier,
     // named symbol of a statement
@@ -92,11 +95,16 @@ module.exports = grammar({
     false: ($) => "false",
     null: ($) => "null",
     static_keyword: ($) => "static",
+    // Godot 3.x networking/RPC modifiers on funcs and vars. `slave` and `sync`
+    // existed in 3.0 (`slave` was later renamed to `puppet`); all were replaced
+    // by the `@rpc(...)` annotation in Godot 4.
     remote_keyword: ($) =>
       choice(
         "remote",
         "master",
+        "slave",
         "puppet",
+        "sync",
         "remotesync",
         "mastersync",
         "puppetsync",
@@ -127,13 +135,15 @@ module.exports = grammar({
       ),
 
     float: ($) => {
-      const digits = repeat1(/[0-9]+_?/);
+      // GDScript permits `_` digit separators anywhere among the digits,
+      // including trailing ones (e.g. 1_000.0, 1_0e1_0, 1_000_).
+      const digits = /[0-9][0-9_]*/;
       const exponent = seq(/[eE][\+-]?/, digits);
 
       return token(
         choice(
           seq(digits, ".", optional(digits), optional(exponent)),
-          seq(optional(digits), ".", digits, optional(exponent)),
+          seq(".", digits, optional(exponent)),
           seq(digits, exponent),
         ),
       );
@@ -142,10 +152,11 @@ module.exports = grammar({
     integer: ($) =>
       token(
         choice(
-          seq(choice("0x", "0X"), repeat1(/_?[A-Fa-f0-9]+/)),
-          seq(choice("0o", "0O"), repeat1(/_?[0-7]+/)),
-          seq(choice("0b", "0B"), repeat1(/_?[0-1]+/)),
-          repeat1(/[0-9]+_?/),
+          // `_` separators may appear between/after digits (0x1234_00_f_f_).
+          seq(choice("0x", "0X"), /[A-Fa-f0-9][A-Fa-f0-9_]*/),
+          seq(choice("0o", "0O"), /[0-7][0-7_]*/),
+          seq(choice("0b", "0B"), /[01][01_]*/),
+          /[0-9][0-9_]*/,
         ),
       ),
 
@@ -161,28 +172,31 @@ module.exports = grammar({
         repeat(choice($.escape_sequence, $._string_content)),
         alias($._string_end, '"'),
       ),
+    // One segment of a `$`/`%` node path: an optional unique-name `%` marker
+    // followed by a bare name or a quoted string (Godot allows mixing them,
+    // e.g. `$Foo/"Bar Baz"`).
+    _node_path_segment: ($) =>
+      seq(optional("%"), choice($._identifier, alias($.string, "value"))),
+
     get_node: ($) =>
       prec.right(
-        seq(
-          choice(
-            seq(
-              "$",
-              choice(
-                alias($.string, "value"),
-                seq(
-                  optional("/"),
-                  $._identifier,
-                  repeat(seq("/", $._identifier)),
-                ),
-              ),
-            ),
-            seq(
-              "%",
-              choice(
-                alias($.string, "value"),
-                seq($._identifier, repeat(seq("/", $._identifier))),
-              ),
-            ),
+        choice(
+          // `$` shorthand: an optional leading `/` then `/`-separated segments,
+          // each of which may carry a unique-name `%` marker and be a bare name
+          // or a quoted string — e.g. `$Foo`, `$"a/b"`, `$/root/Baz`, `$%Foo`,
+          // `$Foo/%Bar`, `$%"Unique"`, `$Foo/"Bar Baz"`.
+          seq(
+            "$",
+            optional("/"),
+            $._node_path_segment,
+            repeat(seq("/", $._node_path_segment)),
+          ),
+          // `%` unique-name shorthand: the leading `%` is the marker, so the first
+          // segment is a bare name or string; later segments may be `%`-marked.
+          seq(
+            "%",
+            choice($._identifier, alias($.string, "value")),
+            repeat(seq("/", $._node_path_segment)),
           ),
         ),
       ),
@@ -545,10 +559,17 @@ module.exports = grammar({
         // Annotations are generally supported as statements throughout code but
         // as match blocks are expressions, we need to explicitly allow them
         // here. The pattern section body itself supports statements (thus annotations).
+        //
+        // Godot's parse_match() also consumes bare `pass` (+ newline) lines inside
+        // the match block — used as a placeholder for an empty match, and legal
+        // interspersed among branches (e.g. `match x:\n\tpass`).
         repeat1(
-          seq(
-            optional(repeat(seq($.annotation, optional($._newline)))),
-            $.pattern_section,
+          choice(
+            seq($.pass_statement, choice($._newline, $._body_end)),
+            seq(
+              optional(repeat(seq($.annotation, optional($._newline)))),
+              $.pattern_section,
+            ),
           ),
         ),
         $._dedent,
@@ -694,7 +715,10 @@ module.exports = grammar({
           seq(
             field("left", $._primary_expression),
             field("op", operator),
-            field("right", $._primary_expression),
+            // A lambda may appear as the right operand, e.g. `cb or func(): pass`.
+            // Only the right side is allowed: the left/leading position is
+            // ambiguous with a `func` statement, and never occurs in practice.
+            field("right", choice($._primary_expression, $.lambda)),
           ),
         );
       });
@@ -702,13 +726,18 @@ module.exports = grammar({
       return choice(...choices);
     },
 
-    unary_operator: ($) =>
-      choice(
-        prec(PREC.unary, seq(choice("not", "!"), $._primary_expression)),
-        prec(PREC.unary, seq("-", $._primary_expression)),
-        prec(PREC.unary, seq("+", $._primary_expression)),
-        prec(PREC.unary, seq("~", $._primary_expression)),
-      ),
+    unary_operator: ($) => {
+      // The operand may be a lambda, e.g. `not func(): return false`. As with
+      // binary operators, the prefix token guarantees we are mid-expression, so
+      // this never collides with a `func` statement.
+      const operand = choice($._primary_expression, $.lambda);
+      return choice(
+        prec(PREC.unary, seq(choice("not", "!"), operand)),
+        prec(PREC.unary, seq("-", operand)),
+        prec(PREC.unary, seq("+", operand)),
+        prec(PREC.unary, seq("~", operand)),
+      );
+    },
 
     // -- Accessors
     subscript_arguments: ($) =>
@@ -750,7 +779,7 @@ module.exports = grammar({
           "if",
           field("condition", $._expression),
           "else",
-          field("right", $._expression),
+          field("right", choice($._expression, $.lambda)),
         ),
       ),
 
@@ -821,7 +850,9 @@ module.exports = grammar({
             ),
           ),
         ),
-        optional($.pattern_open_ending),
+        // `..` open-ending may itself be followed by a trailing comma in a
+        // multiline pattern, e.g. `{ "k": v, .., }`.
+        optional(seq($.pattern_open_ending, optional(","))),
         "}",
       ),
 
@@ -829,7 +860,7 @@ module.exports = grammar({
       seq(
         "[",
         optional(trailCommaSep1(choice($._rhs_expression, $.pattern_binding))),
-        optional($.pattern_open_ending),
+        optional(seq($.pattern_open_ending, optional(","))),
         "]",
       ),
 

@@ -722,6 +722,10 @@
           {
             "type": "_primary_expression",
             "named": true
+          },
+          {
+            "type": "lambda",
+            "named": true
           }
         ]
       }
@@ -1002,6 +1006,10 @@
         "types": [
           {
             "type": "_expression",
+            "named": true
+          },
+          {
+            "type": "lambda",
             "named": true
           }
         ]
@@ -1669,6 +1677,10 @@
       "types": [
         {
           "type": "annotation",
+          "named": true
+        },
+        {
+          "type": "pass_statement",
           "named": true
         },
         {
@@ -2356,6 +2368,10 @@
         {
           "type": "_primary_expression",
           "named": true
+        },
+        {
+          "type": "lambda",
+          "named": true
         }
       ]
     }
@@ -2712,7 +2728,8 @@
   },
   {
     "type": "comment",
-    "named": true
+    "named": true,
+    "extra": true
   },
   {
     "type": "const",
@@ -2784,7 +2801,8 @@
   },
   {
     "type": "line_continuation",
-    "named": true
+    "named": true,
+    "extra": true
   },
   {
     "type": "master",
@@ -2867,12 +2885,20 @@
     "named": false
   },
   {
+    "type": "slave",
+    "named": false
+  },
+  {
     "type": "static_keyword",
     "named": true
   },
   {
     "type": "super",
     "named": true
+  },
+  {
+    "type": "sync",
+    "named": false
   },
   {
     "type": "true",

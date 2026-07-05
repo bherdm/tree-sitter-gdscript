@@ -1,0 +1,339 @@
+=====================================
+Godot 2/3 export hint with range
+=====================================
+
+export(int, 0, 100) var speed = 5
+
+---
+
+(source
+  (export_variable_statement
+    (arguments
+      (identifier)
+      (integer)
+      (integer))
+    (name)
+    (integer)))
+
+=====================================
+Godot 3 export onready combined
+=====================================
+
+export(int) onready var health = 100
+
+---
+
+(source
+  (export_variable_statement
+    (arguments
+      (identifier))
+    (name)
+    (integer)))
+
+=====================================
+Godot 3 rpc keyword func modifiers (slave, sync)
+=====================================
+
+slave func a():
+	pass
+
+sync func b():
+	pass
+
+remotesync func c():
+	pass
+
+---
+
+(source
+  (function_definition
+    (remote_keyword)
+    (name)
+    (parameters)
+    (body
+      (pass_statement)))
+  (function_definition
+    (remote_keyword)
+    (name)
+    (parameters)
+    (body
+      (pass_statement)))
+  (function_definition
+    (remote_keyword)
+    (name)
+    (parameters)
+    (body
+      (pass_statement))))
+
+=====================================
+Godot 3 rpc keyword var modifiers
+=====================================
+
+puppet var state = 0
+sync var counter = 0
+
+---
+
+(source
+  (variable_statement
+    (remote_keyword)
+    (name)
+    (integer))
+  (variable_statement
+    (remote_keyword)
+    (name)
+    (integer)))
+
+=====================================
+Godot 2/3 setget forms
+=====================================
+
+var hp setget set_hp, get_hp
+var mp setget set_mp
+var xp setget , get_xp
+
+---
+
+(source
+  (variable_statement
+    (name)
+    (setget
+      (setter)
+      (getter)))
+  (variable_statement
+    (name)
+    (setget
+      (setter)))
+  (variable_statement
+    (name)
+    (setget
+      (getter))))
+
+=====================================
+Godot 2/3 yield expression
+=====================================
+
+func f():
+	yield(get_node("x"), "done")
+	yield()
+
+---
+
+(source
+  (function_definition
+    (name)
+    (parameters)
+    (body
+      (expression_statement
+        (call
+          (yield)
+          (arguments
+            (call
+              (identifier)
+              (arguments
+                (string)))
+            (string))))
+      (expression_statement
+        (call
+          (yield)
+          (arguments))))))
+
+=====================================
+Unicode identifiers
+=====================================
+
+const π = 3
+var café := 1
+var ㄥ = π
+
+---
+
+(source
+  (const_statement
+    (name)
+    (integer))
+  (variable_statement
+    (name)
+    (inferred_type)
+    (integer))
+  (variable_statement
+    (name)
+    (identifier)))
+
+=====================================
+Numeric literals with underscore separators
+=====================================
+
+var a = 0x1234_00_f_f_
+var b = 0b1001_01_0_1_
+var c = 1_000_000
+var d = 1_000.0
+var e = 1_0e1_0
+
+---
+
+(source
+  (variable_statement
+    (name)
+    (integer))
+  (variable_statement
+    (name)
+    (integer))
+  (variable_statement
+    (name)
+    (integer))
+  (variable_statement
+    (name)
+    (float))
+  (variable_statement
+    (name)
+    (float)))
+
+=====================================
+Match body of just pass
+=====================================
+
+func f():
+	match value:
+		pass
+
+---
+
+(source
+  (function_definition
+    (name)
+    (parameters)
+    (body
+      (match_statement
+        (identifier)
+        (match_body
+          (pass_statement))))))
+
+=====================================
+Match array pattern with open-ending and trailing comma
+=====================================
+
+func f():
+	match value:
+		[1, [2, ..,],]:
+			pass
+
+---
+
+(source
+  (function_definition
+    (name)
+    (parameters)
+    (body
+      (match_statement
+        (identifier)
+        (match_body
+          (pattern_section
+            (array
+              (integer)
+              (array
+                (integer)
+                (pattern_open_ending)))
+            (body
+              (pass_statement))))))))
+
+=====================================
+get_node dollar-percent unique-name forms
+=====================================
+
+var a = $%Unique
+var b = $%"Unique"
+var c = %Foo/%Bar
+var d = $Foo/%Bar
+
+---
+
+(source
+  (variable_statement
+    (name)
+    (get_node))
+  (variable_statement
+    (name)
+    (get_node))
+  (variable_statement
+    (name)
+    (get_node))
+  (variable_statement
+    (name)
+    (get_node)))
+
+=====================================
+Node paths with mixed quoted and unique-name segments
+=====================================
+
+var a = $Foo/"Bar"
+var b = $Foo/Bar/"Baz Qux"
+var c = %Foo/%Bar
+var d = $/root/"Main Scene"/Player
+
+---
+
+(source
+  (variable_statement
+    (name)
+    (get_node))
+  (variable_statement
+    (name)
+    (get_node))
+  (variable_statement
+    (name)
+    (get_node))
+  (variable_statement
+    (name)
+    (get_node)))
+
+=====================================
+Lambda as an expression operand
+=====================================
+
+var a = cb or func(): return true
+var b = 1 if ok else func(): return 2
+var c = not func(): return false
+var d = [1 if ok else func(): return 2]
+
+---
+
+(source
+  (variable_statement
+    (name)
+    (binary_operator
+      (identifier)
+      (lambda
+        (parameters)
+        (body
+          (return_statement
+            (true))))))
+  (variable_statement
+    (name)
+    (conditional_expression
+      (integer)
+      (identifier)
+      (lambda
+        (parameters)
+        (body
+          (return_statement
+            (integer))))))
+  (variable_statement
+    (name)
+    (unary_operator
+      (lambda
+        (parameters)
+        (body
+          (return_statement
+            (false))))))
+  (variable_statement
+    (name)
+    (array
+      (conditional_expression
+        (integer)
+        (identifier)
+        (lambda
+          (parameters)
+          (body
+            (return_statement
+              (integer))))))))

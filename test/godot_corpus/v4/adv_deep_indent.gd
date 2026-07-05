@@ -1,0 +1,8 @@
+func test():
+	if true:
+		if true:
+			if true:
+				if true:
+					if true:
+						if true:
+							print(1)
